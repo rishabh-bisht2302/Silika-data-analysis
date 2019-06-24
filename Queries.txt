@@ -100,3 +100,46 @@ SELECT t2.customer_name AS full_name,
 
 
 *************************************************************************************************************
+
+
+
+FOURTH QUERY(Fourth slide in presentation)
+
+/* For each of the top 5 paying customers,write a query to find out the difference across their monthly payments during year 2007. */
+
+
+WITH t1 AS(SELECT CONCAT(c.first_name,' ',c.last_name) customer_name, 
+	          SUM(p.amount) total_pay
+             FROM payment p
+             JOIN customer c
+               ON p.customer_id = c.customer_id
+	    WHERE DATE_PART('year',payment_date) = '2007'
+         GROUP BY 1
+         ORDER BY 2 DESC
+            LIMIT 5),
+     t2 AS(SELECT CONCAT (c.first_name ,' ',c.last_name) customer_name,
+		  DATE_TRUNC('month',p.payment_date) pay_date,
+		  COUNT(p.payment_date) pay_count, 
+           	  SUM(p.amount) pay_amt
+             FROM payment p
+	     JOIN customer c
+	       ON p.customer_id = c.customer_id
+         GROUP BY 1,2
+         ORDER BY 1),
+     t3 AS(SELECT t2.pay_date AS pay_month,
+	 	  t2.customer_name AS full_name,
+                  t2.pay_count AS pay_count_per_month,
+       		  t2.pay_amt AS pay_amount,
+       		  LAG(t2.pay_amt) OVER (PARTITION BY t2.customer_name) prev_month_amt,
+       		  t2.pay_amt - (LAG(t2.pay_amt) OVER (PARTITION BY t2.customer_name )) prev_month_diff
+  	     FROM t1
+  	     JOIN t2
+  	       ON t1.customer_name = t2.customer_name )
+SELECT pay_month, 
+       full_name, 
+       pay_count_per_month,
+       pay_amount,
+       COALESCE(t3.prev_month_amt,'0') prev_month_amt,
+       COALESCE(t3.prev_month_diff,t3.pay_amount) prev_month_diff
+FROM t3;
+
